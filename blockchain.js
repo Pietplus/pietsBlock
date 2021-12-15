@@ -1,41 +1,52 @@
 //import hash function of the crypto package of nodeJS
-const crypto = require("crypto"),SHA256 = message => crypto.createHash("SHA256").update(message).digest("hex");
+const crypto = require("crypto"), SHA256 = message => crypto.createHash("sha256").update(message).digest("hex");
 
 class Block {
-    constructor(timestamp = "",data = []) {
+    constructor(timestamp = Date.now().toString(), data = []) {
         this.timestamp = timestamp;
-        // this.data should contain information like transactions.
         this.data = data;
+         // this.data should contain information like transactions.
+        this.prevHash = "";
+        this.hash = this.getHash();
+        this.nonce = 0;
     }
-}
 
 // create a hash function.
-getHash = () => {
-    return SHA256(this.prevHash + this.timestamp + JSON.stringify(this.data));
-}
+    getHash() {
+        return SHA256(this.prevHash + this.timestamp + JSON.stringify(this.data) + this.nonce);
+    }
 
-class Blockchain {
-constructor() {
-        this.difficulty = 1;
-        // create a genesis Block
-        this.chain = [new Block(Date.now().toString())];
+    mine(difficulty) {
+        while (!this.hash.startsWith(Array(difficulty + 1).join("0"))) {
+            this.nonce++;
+            this.hash = this.getHash();
+        }
     }
 }
 
-getLastBlock = () => {
-    return this.chain[this.chain.length - 1];
-}
+// create a genesis Block
+class Blockchain {
+    constructor() {
+        this.chain = [new Block()];
+        this.difficulty = 1;
+        this.blockTime = 30000;
+    }
 
-addBlock = (block) => {
-    // prevhash will be the hash of the latest block.
-    block.prevHash = this.getLastBlock().hash;
-    // reset the block hash value.
-    block.hash = block.getHash();
+    getLastBlock() {
+        return this.chain[this.chain.length - 1];
+    }
 
-    block.mine(this.difficulty);
+    addBlock(block) {
+// prevhash will be the hash of the latest block.
 
-    // Object.freeze ensures immutability.
-    this.chain.push(Object.freeze(block));
+        block.prevHash = this.getLastBlock().hash;
+
+// reset the block hash value.
+        block.hash = block.getHash();
+        block.mine(this.difficulty);
+// Object.freeze ensures immutability.
+        this.chain.push(Object.freeze(block));
+        this.difficulty += Date.now() - parseInt(this.getLastBlock().timestamp) < this.blockTime ? 1 : -1;
 }
 
 // Validation
@@ -43,20 +54,20 @@ addBlock = (block) => {
 /* The chain is valid oif a block`s hash is equal to what its hashing method returns,
 and a block`s prevHash property should be equal to the previous block`s hash.*/
 
-isValid = (blockchain = this) => {
-    // Iterate over the chain, we need to set i to 1. Be aware of the genesis Block.
-    for(let i = 1; i < blockchain.chain.length;i++) {
-
-            const currentBlock = blockchain.chain[i];
-            const prevBlock = blockchain.chain[i-1];
-
-            // check validation
-        if(currentBlock.hash !== currentBlock.gethash() || prevBlock.hash !== currentBlock.prevhash) {
-            return false;
+    isValid() {
+        // Iterate over the chain, we need to set i to 1. Be aware of the genesis Block.
+        for (let i = 1; i < this.chain.length; i++) {
+            const currentBlock = this.chain[i];
+            const prevBlock = this.chain[i-1];
+            
+// check validation
+            if (currentBlock.hash !== currentBlock.getHash() || prevBlock.hash !== currentBlock.prevHash) {
+                return false;
+            }
         }
+
+        return true;
     }
-    return true;
 }
-
-
-module.exports = { Block,Blockchain };
+const pietChain = new Blockchain();
+module.exports = { Block, Blockchain, pietChain };
